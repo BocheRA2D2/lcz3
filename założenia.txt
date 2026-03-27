@@ -1,0 +1,22 @@
+z telefonu Huawei p30pro chce czrobić pełnoekranowy dashboard.
+Ma być piękny nie zjadać baterii. 
+Ustawienia:
+motyw czarany/bialy/bajerancki
+Autopauza wł/Wył
+orintacja pion/poziom
+Dostosowanie - każdy element głównego dascha można powiekszyc/ pomniejszyć przesunąć i zapisać taki układ
+menu opcji ukryte. pokazuje się po dwukrotnym kliknieciu w aktualną godzinę
+
+wygląd dascha
+aktualna data: Dzień tygodnia DD-MM-RRRR -  godzina (godzina:minuty)
+aktualny czas jazdy - przycisk start zamienny z przyciskiem koniec
+stan baterii w procentach oraz wizualnie kolor i napełnienie
+aktualna pogoda oraz ile stopni celciusza 
+pogoda za godzine
+- ikonka ręcznego oswieżania pogody ( z automatu co 10 minut)
+
+openweathermap
+mój apkkey:1a2bd67974b9a6025c9e245b42a4c530
+
+na koniec pchnij pliki do mojego repozytorium w GitHubie:
+https://github.com/BocheRA2D2/lcz3.git
