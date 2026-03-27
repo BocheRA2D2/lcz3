@@ -13,8 +13,6 @@ import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -23,7 +21,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,12 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private GeolocationPermissions.Callback geoCallback;
     private String geoOrigin;
 
-    // ──────────────────────────────────────────────────────────
-    // Android bridge exposed to JavaScript as window.Android
-    // ──────────────────────────────────────────────────────────
+    // ── Android bridge – available in JS as window.Android ───────────
     public class AndroidBridge {
-
-        /** Lock screen orientation from JavaScript */
         @JavascriptInterface
         public void setOrientation(String dir) {
             runOnUiThread(() -> {
@@ -50,76 +43,46 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
-
-        /** Prevent screen from sleeping (called from JS) */
-        @JavascriptInterface
-        public void keepScreenOn(boolean on) {
-            runOnUiThread(() -> {
-                if (on) {
-                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                } else {
-                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                }
-            });
-        }
     }
 
-    // ──────────────────────────────────────────────────────────
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Keep screen always on
+        // Keep screen on (native – more reliable than JS Wake Lock API)
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Immersive fullscreen
+        // Enter immersive fullscreen before inflating view
         hideSystemUI();
 
-        // Build WebView programmatically (no XML layout needed)
+        // Create WebView as the only view
         webView = new WebView(this);
         setContentView(webView);
 
-        // ── WebView settings ──────────────────────────────────
+        // ── WebView settings ──────────────────────────────────────────
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setGeolocationEnabled(true);
-        ws.setAllowFileAccess(false);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-        ws.setMediaPlaybackRequiresUserGesture(false);
 
-        // ── Android bridge ────────────────────────────────────
+        // Allow file:// page to call external HTTPS APIs (OpenWeatherMap)
+        //noinspection deprecation
+        ws.setAllowUniversalAccessFromFileURLs(true);
+
+        // ── Clients ───────────────────────────────────────────────────
         webView.addJavascriptInterface(new AndroidBridge(), "Android");
-
-        // ── Asset loader: serves assets as https://appassets.androidplatform.net ──
-        final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
-                .build();
-
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
-                // Let asset loader serve local files; pass through external URLs
-                WebResourceResponse res = loader.shouldInterceptRequest(req.getUrl());
-                return res; // null means WebView handles it normally
-            }
-
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
-                // Stay within the app for all URLs
-                return false;
-            }
-        });
+        webView.setWebViewClient(new WebViewClient());
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onGeolocationPermissionsShowPrompt(String origin,
-                                                           GeolocationPermissions.Callback cb) {
+            public void onGeolocationPermissionsShowPrompt(
+                    String origin, GeolocationPermissions.Callback cb) {
                 geoOrigin = origin;
                 geoCallback = cb;
-
                 if (ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED) {
                     cb.invoke(origin, true, false);
                 } else {
                     ActivityCompat.requestPermissions(MainActivity.this,
@@ -131,27 +94,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Load dashboard from local assets (secure context required for Wake Lock JS API)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
+        // Load dashboard from bundled assets
+        webView.loadUrl("file:///android_asset/index.html");
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Permission result
-    // ──────────────────────────────────────────────────────────
+    // ── Location permissions ──────────────────────────────────────────
     @Override
     public void onRequestPermissionsResult(int code,
                                            @NonNull String[] perms,
                                            @NonNull int[] grants) {
         super.onRequestPermissionsResult(code, perms, grants);
         if (code == LOC_REQ && geoCallback != null) {
-            boolean ok = grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED;
+            boolean ok = grants.length > 0
+                    && grants[0] == PackageManager.PERMISSION_GRANTED;
             geoCallback.invoke(geoOrigin, ok, false);
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Immersive fullscreen
-    // ──────────────────────────────────────────────────────────
+    // ── Immersive fullscreen (API 28 + 30+) ───────────────────────────
     @SuppressWarnings("deprecation")
     private void hideSystemUI() {
         Window w = getWindow();
@@ -180,16 +140,14 @@ public class MainActivity extends AppCompatActivity {
         if (hasFocus) hideSystemUI();
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Back button: navigate back in WebView history, never exit
-    // ──────────────────────────────────────────────────────────
+    // ── Back button: navigate WebView history, never exit ─────────────
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         }
-        // Swallow event – do not exit the app accidentally
+        // swallow event – prevent accidental exit
     }
 
     @Override
@@ -208,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (webView != null) {
             webView.destroy();
+            webView = null;
         }
         super.onDestroy();
     }
