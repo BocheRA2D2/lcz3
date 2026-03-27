@@ -1,6 +1,7 @@
 package com.lcz3.dashboard;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -17,19 +18,14 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private static final int LOC_REQ = 1;
     private WebView webView;
     private GeolocationPermissions.Callback geoCallback;
     private String geoOrigin;
 
-    // ── Android bridge – available in JS as window.Android ───────────
+    // ── JS bridge: window.Android in dashboard JS ─────────────────────
     public class AndroidBridge {
         @JavascriptInterface
         public void setOrientation(String dir) {
@@ -49,15 +45,23 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Keep screen on (native – more reliable than JS Wake Lock API)
+        // No title bar
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        // Keep screen always on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Enter immersive fullscreen before inflating view
-        hideSystemUI();
+        // Fullscreen flag via window flags (reliable on EMUI)
+        getWindow().setFlags(
+                WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
-        // Create WebView as the only view
+        // Build WebView
         webView = new WebView(this);
         setContentView(webView);
+
+        // Enter immersive sticky mode after view is set
+        hideSystemUI();
 
         // ── WebView settings ──────────────────────────────────────────
         WebSettings ws = webView.getSettings();
@@ -65,8 +69,7 @@ public class MainActivity extends AppCompatActivity {
         ws.setDomStorageEnabled(true);
         ws.setGeolocationEnabled(true);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-        // Allow file:// page to call external HTTPS APIs (OpenWeatherMap)
+        // Allow file:// to make HTTPS API calls (OpenWeatherMap)
         //noinspection deprecation
         ws.setAllowUniversalAccessFromFileURLs(true);
 
@@ -80,29 +83,23 @@ public class MainActivity extends AppCompatActivity {
                     String origin, GeolocationPermissions.Callback cb) {
                 geoOrigin = origin;
                 geoCallback = cb;
-                if (ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.ACCESS_FINE_LOCATION)
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED) {
                     cb.invoke(origin, true, false);
                 } else {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                            }, LOC_REQ);
+                    requestPermissions(new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    }, LOC_REQ);
                 }
             }
         });
 
-        // Load dashboard from bundled assets
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    // ── Location permissions ──────────────────────────────────────────
     @Override
-    public void onRequestPermissionsResult(int code,
-                                           @NonNull String[] perms,
-                                           @NonNull int[] grants) {
+    public void onRequestPermissionsResult(int code, String[] perms, int[] grants) {
         super.onRequestPermissionsResult(code, perms, grants);
         if (code == LOC_REQ && geoCallback != null) {
             boolean ok = grants.length > 0
@@ -111,20 +108,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ── Immersive fullscreen (API 28 + 30+) ───────────────────────────
     @SuppressWarnings("deprecation")
     private void hideSystemUI() {
-        Window w = getWindow();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            w.setDecorFitsSystemWindows(false);
-            WindowInsetsController c = w.getInsetsController();
+            WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {
                 c.hide(WindowInsets.Type.systemBars());
                 c.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
-            w.getDecorView().setSystemUiVisibility(
+            getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -140,14 +134,12 @@ public class MainActivity extends AppCompatActivity {
         if (hasFocus) hideSystemUI();
     }
 
-    // ── Back button: navigate WebView history, never exit ─────────────
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         }
-        // swallow event – prevent accidental exit
     }
 
     @Override
