@@ -494,6 +494,37 @@ body.edit-mode .edit-handle { display: flex; }
 }
 body.edit-mode .widget .resize-handle { display: block; }
 
+/* Font handles (Plus / Minus) */
+.widget .font-handle {
+  display: none;
+  position: absolute;
+  width: 26px; height: 26px;
+  background: var(--widget-bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+  line-height: 22px;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+}
+.widget .font-handle:active {
+  background: var(--accent);
+  color: #000;
+  transform: scale(0.9);
+}
+.widget .font-handle.plus {
+  top: 8px; left: 8px;
+}
+.widget .font-handle.minus {
+  top: 8px; left: 40px;
+}
+body.edit-mode .widget .font-handle { display: block; }
+
 /* ==================== UTILITIES ==================== */
 
 .hidden { opacity: 0; pointer-events: none; }

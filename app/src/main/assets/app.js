@@ -344,12 +344,34 @@ const editBar = document.getElementById('edit-bar');
 const btnEdit = document.getElementById('btn-edit');
 const btnSave = document.getElementById('btn-save');
 
-// Add resize handles to all widgets
+// Add resize and font handles to all widgets
 document.querySelectorAll('.widget').forEach(w => {
   const rh = document.createElement('div');
   rh.className = 'resize-handle';
   rh.textContent = '⤡';
   w.appendChild(rh);
+
+  const fontPlus = document.createElement('div');
+  fontPlus.className = 'font-handle plus';
+  fontPlus.textContent = '+';
+  fontPlus.onclick = (e) => {
+    if (!state.editMode) return;
+    e.stopPropagation();
+    let currentScale = parseFloat(w.style.getPropertyValue('--font-scale')) || 1;
+    w.style.setProperty('--font-scale', (currentScale + 0.1).toFixed(2));
+  };
+  w.appendChild(fontPlus);
+
+  const fontMinus = document.createElement('div');
+  fontMinus.className = 'font-handle minus';
+  fontMinus.textContent = '−'; // minus sign
+  fontMinus.onclick = (e) => {
+    if (!state.editMode) return;
+    e.stopPropagation();
+    let currentScale = parseFloat(w.style.getPropertyValue('--font-scale')) || 1;
+    w.style.setProperty('--font-scale', Math.max(0.2, currentScale - 0.1).toFixed(2));
+  };
+  w.appendChild(fontMinus);
 });
 
 function toggleEditMode() {
