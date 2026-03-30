@@ -114,10 +114,11 @@ function toggleTrip() {
     elTripBtn.querySelector('.btn-text').textContent = 'STOP';
     timerRAF = requestAnimationFrame(timerLoop);
   } else {
-    // STOP
-    state.tripElapsed += Date.now() - state.tripStart;
+    // STOP AND RESET
+    state.tripElapsed = 0;
     state.tripRunning = false;
     if (timerRAF) cancelAnimationFrame(timerRAF);
+    elTripDisplay.textContent = '00:00:00';
     elTripBtn.classList.remove('stop');
     elTripBtn.classList.add('start');
     elTripBtn.querySelector('.btn-icon').textContent = '▶';
@@ -527,7 +528,8 @@ function saveLayout() {
 
 function loadLayoutData() {
   const raw = localStorage.getItem('lcz3_layout');
-  return raw ? JSON.parse(raw) : null;
+  const defaultLayout = {"clock":{"left":"14px","top":"14px","width":"364px","height":"67px","scale":1.39},"timer":{"left":"14px","top":"95px","width":"364px","height":"108px","scale":1.81},"battery":{"left":"14px","top":"217px","width":"364px","height":"108px","scale":2.5},"weather":{"left":"14px","top":"339px","width":"182px","height":"101px","scale":1.7},"forecast":{"left":"213px","top":"337px","width":"140px","height":"101px","scale":1.84},"map":{"left":"8px","top":"464px","width":"365px","height":"283px","scale":1}};
+  return raw ? JSON.parse(raw) : defaultLayout;
 }
 
 function applyStoredLayout() {
