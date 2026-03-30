@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LCZ3 – Edytor Wyglądu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       EDITOR HOST STYLES
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --editor-bg: #0d0d14;
+      --panel-bg: #13131f;
+      --panel-border: rgba(255,255,255,0.07);
+      --accent: #7c6fff;
+      --accent2: #00d4aa;
+      --text: #e8e6ff;
+      --text-muted: rgba(232,230,255,0.45);
+      --success: #00e676;
+      --warn: #ffea00;
+      --danger: #ff4569;
+      --radius: 16px;
+      --font: 'Inter', sans-serif;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--editor-bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    /* ---- Layout ---- */
+    #editor-root {
+      display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+      gap: 0;
+    }
+
+    /* ---- Top Bar ---- */
+    #topbar {
+      grid-column: 1 / -1;
+      background: rgba(13,13,20,0.92);
+      border-bottom: 1px solid var(--panel-border);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      z-index: 100;
+    }
+    .topbar-logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.1em;
+    }
+    .topbar-subtitle {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-left: 12px;
+      letter-spacing: 0.12em;
+    }
+    .topbar-left { display: flex; align-items: center; }
+    .topbar-right { display: flex; gap: 10px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px;
+      border: none; border-radius: 50px;
+      font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(124,111,255,0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(124,111,255,0.55); transform: translateY(-1px); }
+    .btn-success {
+      background: linear-gradient(135deg, var(--accent2), #00b37e);
+      color: #000;
+      box-shadow: 0 4px 18px rgba(0,212,170,0.35);
+    }
+    .btn-success:hover { box-shadow: 0 6px 24px rgba(0,212,170,0.55); transform: translateY(-1px); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+      border: 1px solid var(--panel-border);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.12); }
+    .btn-danger {
+      background: rgba(255,69,105,0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255,69,105,0.3);
+    }
+    .btn-danger:hover { background: rgba(255,69,105,0.25); }
+
+    /* ---- Left Panel ---- */
+    #left-panel {
+      background: var(--panel-bg);
+      border-right: 1px solid var(--panel-border);
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ---- Right Panel ---- */
+    #right-panel {
+      background: var(--panel-bg);
+      border-left: 1px solid var(--panel-border);
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ---- Center (canvas) ---- */
+    #canvas-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+      overflow: auto;
+      background:
+        radial-gradient(ellipse at 30% 40%, rgba(124,111,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 60%, rgba(0,212,170,0.05) 0%, transparent 60%),
+        var(--editor-bg);
+    }
+    #canvas-area > div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ============================================================
+       PHONE FRAME
+    ============================================================ */
+    #phone-frame {
+      position: relative;
+      width: 392px;
+      height: 770px;
+      background: #0a0a0f;
+      border-radius: 42px;
+      box-shadow:
+        0 0 0 2px #1a1a2a,
+        0 0 0 4px #111,
+        0 0 0 6px #222,
+        0 30px 80px rgba(0,0,0,0.8),
+        0 0 60px rgba(124,111,255,0.15);
+      flex-shrink: 0;
+      overflow: hidden;
+      transform-origin: center top;
+      transition: width 0.4s, height 0.4s, border-radius 0.4s, transform 0.4s;
+    }
+
+    /* Notch */
+    #phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 130px; height: 28px;
+      background: #0a0a0f;
+      border-radius: 0 0 18px 18px;
+      z-index: 200;
+    }
+
+    /* Side buttons */
+    #phone-frame::after {
+      content: '';
+      position: absolute;
+      right: -4px; top: 140px;
+      width: 4px; height: 70px;
+      background: #222;
+      border-radius: 0 4px 4px 0;
+      box-shadow: 0 90px 0 #222;
+    }
+
+    /* Screen */
+    #phone-screen {
+      position: absolute;
+      inset: 0;
+      border-radius: 40px;
+      overflow: hidden;
+    }
+
+    /* ============================================================
+       DASHBOARD INSIDE PHONE (mini replica)
+    ============================================================ */
+    #dash-preview {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    /* Themes applied to dash-preview */
+    #dash-preview.theme-dark {
+      background: #000;
+      --w-bg: rgba(255,255,255,0.04);
+      --w-border: rgba(255,255,255,0.08);
+      --txt: #ffffff;
+      --txt-m: rgba(255,255,255,0.45);
+      --acc: #00ffcc;
+      --acc2: #00aaff;
+      --bat-ok: #00e676;
+      --bat-mid: #ffea00;
+      --bat-low: #ff1744;
+      --shd: 0 8px 40px rgba(0,255,204,0.10);
+    }
+    #dash-preview.theme-light {
+      background: #f0f2f5;
+      --w-bg: rgba(255,255,255,0.85);
+      --w-border: rgba(0,0,0,0.08);
+      --txt: #1a1a2e;
+      --txt-m: rgba(26,26,46,0.5);
+      --acc: #1565c0;
+      --acc2: #0288d1;
+      --bat-ok: #2e7d32;
+      --bat-mid: #f57f17;
+      --bat-low: #c62828;
+      --shd: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    #dash-preview.theme-fancy {
+      background: linear-gradient(135deg, #0d001a 0%, #0a0030 40%, #000d1a 100%);
+      --w-bg: rgba(255,255,255,0.06);
+      --w-border: rgba(180,80,255,0.22);
+      --txt: #f0e6ff;
+      --txt-m: rgba(240,230,255,0.45);
+      --acc: #e040fb;
+      --acc2: #40c4ff;
+      --bat-ok: #69ff47;
+      --bat-mid: #ffd740;
+      --bat-low: #ff6e40;
+      --shd: 0 8px 40px rgba(224,64,251,0.18);
+    }
+
+    /* Widget inside preview */
+    .pwidget {
+      --font-scale: 1;
+      position: absolute;
+      background: var(--w-bg);
+      border: 1px solid var(--w-border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: var(--shd);
+      cursor: move;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: box-shadow 0.15s;
+      overflow: hidden;
+    }
+    .pwidget::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .pwidget:hover {
+      box-shadow: 0 0 0 2px var(--acc), var(--shd) !important;
+    }
+    .pwidget.selected {
+      box-shadow: 0 0 0 2.5px var(--acc), 0 0 16px rgba(0,255,204,0.25), var(--shd) !important;
+    }
+
+    /* Resize handle */
+    .p-resize {
+      position: absolute;
+      bottom: 4px; right: 4px;
+      width: 16px; height: 16px;
+      background: var(--acc);
+      border-radius: 4px 0 4px 0;
+      cursor: se-resize;
+      opacity: 0.75;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px;
+      color: #000;
+    }
+
+    /* Widget labels */
+    .pw-label {
+      font-size: calc(7px * var(--font-scale));
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--txt-m);
+      margin-bottom: 3px;
+    }
+    .pw-clock {
+      font-family: 'Orbitron', monospace;
+      font-size: calc(28px * var(--font-scale));
+      font-weight: 900;
+      color: var(--txt);
+      line-height: 1;
+    }
+    .pw-date { font-size: calc(9px * var(--font-scale)); color: var(--txt-m); margin-top: 2px; }
+    .pw-trip {
+      font-family: 'Orbitron', monospace;
+      font-size: calc(16px * var(--font-scale));
+      font-weight: 700;
+      color: var(--acc2);
+      margin: 4px 0 6px;
+    }
+    .pw-trip-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--acc2); color: #000;
+      border: none; border-radius: 20px;
+      padding: 4px 10px; font-size: calc(8px * var(--font-scale)); font-weight: 700;
+      pointer-events: none;
+    }
+    .pw-bat-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 3px; }
+    .pw-bat-shell {
+      width: 36px; height: 16px;
+      border: 1.5px solid var(--txt-m);
+      border-radius: 4px;
+      position: relative; overflow: hidden; flex-shrink: 0;
+    }
+    .pw-bat-fill {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 75%; background: var(--bat-ok);
+      border-radius: 2px 0 0 2px;
+    }
+    .pw-bat-pct { font-family: 'Orbitron', monospace; font-size: calc(11px * var(--font-scale)); font-weight: 700; color: var(--txt); }
+    .pw-bat-status { font-size: calc(7px * var(--font-scale)); color: var(--txt-m); }
+    .pw-wx-row { display: flex; align-items: center; gap: 6px; margin: 5px 0 3px; }
+    .pw-wx-icon { font-size: calc(18px * var(--font-scale)); }
+    .pw-wx-temp { font-family: 'Orbitron', monospace; font-size: calc(13px * var(--font-scale)); font-weight: 700; color: var(--acc); }
+    .pw-wx-desc { font-size: calc(7px * var(--font-scale)); color: var(--txt-m); }
+    
+    .pw-map-bg { 
+      background: #2a2a35; width: 100%; height: calc(100% - 15px); 
+      border-radius: 8px; display:flex; align-items:center; justify-content:center;
+      color: var(--txt-m); font-size: 10px; margin-top: 4px;
+    }
+
+    /* ============================================================
+       PANEL SECTIONS
+    ============================================================ */
+    .panel-section {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* Theme selector */
+    .theme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .theme-card {
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .theme-card:hover { transform: translateY(-2px); }
+    .theme-card.active { border-color: var(--accent); }
+    .theme-card .tc-preview {
+      width: 100%; height: 30px;
+      border-radius: 8px; margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .tc-dark .tc-preview { background: #000; }
+    .tc-light .tc-preview { background: #f0f2f5; }
+    .tc-fancy .tc-preview { background: linear-gradient(135deg, #0d001a, #0a0030, #000d1a); }
+    .tc-dark { color: #aaa; }
+    .tc-light { color: #555; }
+    .tc-fancy { color: #d0a0ff; }
+
+    /* Widget list */
+    .widget-list { display: flex; flex-direction: column; gap: 8px; }
+    .widget-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .widget-item:hover { border-color: var(--accent); background: rgba(124,111,255,0.08); }
+    .widget-item.active { border-color: var(--accent); background: rgba(124,111,255,0.12); }
+    .widget-item-name { font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .widget-item-icon { font-size: 1rem; }
+    .wi-visible { font-size: 0.8rem; color: var(--text-muted); cursor: pointer; }
+    .wi-visible.on { color: var(--accent2); }
+
+    /* Properties */
+    .prop-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .prop-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+    .prop-val { font-size: 0.78rem; font-weight: 600; color: var(--text); font-family: 'Orbitron', monospace; }
+    .prop-input {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.78rem;
+      padding: 5px 10px;
+      width: 90px;
+      text-align: right;
+    }
+    .prop-input:focus { outline: none; border-color: var(--accent); }
+    .prop-slider {
+      width: 100%; margin-top: 6px;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.1);
+      outline: none;
+    }
+    .prop-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Snackbar */
+    #snackbar {
+      position: fixed;
+      bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #1e1e2e;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px 22px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      z-index: 9999;
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      max-width: 90vw;
+      text-align: center;
+    }
+    #snackbar.show { transform: translateX(-50%) translateY(0); }
+    #snackbar.success { border-color: var(--accent2); color: var(--accent2); }
+    #snackbar.info { border-color: var(--accent); color: var(--accent); }
+
+    /* Separator */
+    .sep { height: 1px; background: var(--panel-border); margin: 4px 0; }
+
+    /* Git modal */
+    #git-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.82);
+      z-index: 5000;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(12px);
+    }
+    #git-modal.open { display: flex; }
+    .git-panel {
+      background: #13131f;
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 560px; width: 95%;
+      position: relative;
+      animation: slideUp 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .git-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .git-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 22px; }
+    .git-files {
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 22px;
+    }
+    .git-file {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .git-file-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .git-file-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 3px; }
+    .git-file-desc { font-size: 0.72rem; color: var(--text-muted); }
+    .git-commands {
+      background: #0a0a14;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: var(--accent2);
+      line-height: 1.7;
+    }
+    .git-commands .cmd-comment { color: var(--text-muted); }
+    .git-close {
+      position: absolute; top: 16px; right: 16px;
+      background: none; border: none;
+      color: var(--text-muted); font-size: 1.4rem; cursor: pointer;
+    }
+    .git-close:hover { color: var(--text); }
+
+    /* Landscape toggle */
+    #landscape-toggle {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.78rem; color: var(--text-muted);
+      cursor: pointer;
+    }
+    #landscape-toggle input { cursor: pointer; }
+
+    /* Scale indicator */
+    .scale-info {
+      font-size: 0.65rem; color: var(--text-muted);
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* Zoom slider */
+    .zoom-row { display: flex; align-items: center; gap: 10px; }
+    .zoom-row input { flex: 1; }
+    .zoom-val { font-size: 0.72rem; color: var(--accent); min-width: 32px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(124,111,255,0.35); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div id="editor-root">
+
+  <!-- ==================== TOP BAR ==================== -->
+  <div id="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">LCZ3</span>
+      <span class="topbar-subtitle">EDYTOR WYGLĄDU</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" id="btn-reset-layout">🔄 Resetuj układ</button>
+      <button class="btn btn-primary" id="btn-save-layout">💾 Zapisz układ</button>
+      <button class="btn btn-success" id="btn-push-github">🚀 Prześlij na GitHub</button>
+    </div>
+  </div>
+
+  <!-- ==================== LEFT PANEL ==================== -->
+  <div id="left-panel">
+
+    <!-- Motyw -->
+    <div class="panel-section">
+      <div class="panel-title">🎨 Motyw</div>
+      <div class="theme-grid">
+        <div class="theme-card tc-dark active" data-theme="dark" onclick="setPreviewTheme('dark')">
+          <div class="tc-preview">⬛</div>
+          Czarny
+        </div>
+        <div class="theme-card tc-light" data-theme="light" onclick="setPreviewTheme('light')">
+          <div class="tc-preview">⬜</div>
+          Biały
+        </div>
+        <div class="theme-card tc-fancy" data-theme="fancy" onclick="setPreviewTheme('fancy')">
+          <div class="tc-preview">✨</div>
+          Fancy
+        </div>
+      </div>
+    </div>
+
+    <!-- Widgety -->
+    <div class="panel-section">
+      <div class="panel-title">📦 Widgety</div>
+      <div class="widget-list" id="widget-list">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Orientacja / zoom -->
+    <div class="panel-section">
+      <div class="panel-title">📐 Widok</div>
+      <label id="landscape-toggle">
+        <input type="checkbox" id="chk-landscape" onchange="toggleLandscape()" />
+        Orientacja pozioma
+      </label>
+      <div class="sep" style="margin: 14px 0;"></div>
+      <div class="panel-title" style="margin-bottom:10px">🔍 Zoom podglądu</div>
+      <div class="zoom-row">
+        <input type="range" class="prop-slider" id="zoom-slider" min="50" max="130" value="100" oninput="applyZoom(this.value)" />
+        <span class="zoom-val" id="zoom-val">100%</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== CENTER CANVAS ==================== -->
+  <div id="canvas-area">
+    <div>
+      <div id="phone-frame">
+        <div id="phone-screen">
+          <div id="dash-preview" class="theme-dark">
+            <!-- widgets inserted by JS -->
+          </div>
+        </div>
+      </div>
+      <div class="scale-info" id="scale-info">392 × 770 px — Huawei P30 Pro portret</div>
+    </div>
+  </div>
+
+  <!-- ==================== RIGHT PANEL ==================== -->
+  <div id="right-panel">
+
+    <!-- Właściwości zaznaczonego -->
+    <div class="panel-section" id="props-panel">
+      <div class="panel-title">⚙️ Właściwości</div>
+      <div id="props-content" style="color:var(--text-muted); font-size:0.8rem;">
+        Kliknij widget na ekranie, aby edytować właściwości.
+      </div>
+    </div>
+
+    <!-- Podgląd informacji -->
+    <div class="panel-section">
+      <div class="panel-title">ℹ️ Informacje</div>
+      <div class="prop-row">
+        <span class="prop-label">Temat</span>
+        <span class="prop-val" id="info-theme">Czarny</span>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">Widoczne widgety</span>
+        <span class="prop-val" id="info-widgets">5</span>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">Rozdzielczość</span>
+        <span class="prop-val" id="info-res">392×770</span>
+      </div>
+      <div class="sep" style="margin: 8px 0 16px;"></div>
+      <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.6;">
+        Przeciągaj widgety na ekranie telefonu. Użyj uchwytu w prawym dolnym rogu, aby zmieniać rozmiar.<br><br>
+        Po ustawieniu kliknij <strong style="color:var(--accent)">Zapisz układ</strong>, a następnie <strong style="color:var(--accent2)">Prześlij na GitHub</strong>.
+      </div>
+    </div>
+
+    <!-- Szybkie akcje -->
+    <div class="panel-section">
+      <div class="panel-title">⚡ Szybkie akcje</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="snapToGrid()">⊞ Wyrównaj do siatki</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="distributeEvenly()">≡ Rozmieść równomiernie</button>
+        <button class="btn btn-danger" style="width:100%;justify-content:center;" id="btn-reset-sel" onclick="resetSelectedWidget()">↩ Resetuj zaznaczony</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ==================== GIT MODAL ==================== -->
+<div id="git-modal">
+  <div class="git-panel">
+    <button class="git-close" onclick="closeGitModal()">✕</button>
+    <div class="git-title">🚀 Prześlij zmiany na GitHub</div>
+    <div class="git-subtitle">Układ został zapisany. Następujące pliki zostały zaktualizowane i należy je wypchnąć do repozytorium.</div>
+
+    <div class="git-files">
+      <div class="git-file">
+        <div class="git-file-icon">🎨</div>
+        <div>
+          <div class="git-file-name">style.css</div>
+          <div class="git-file-desc">Zaktualizowany arkusz stylów z pozycjami widgetów i aktywnym motywem</div>
+        </div>
+      </div>
+      <div class="git-file">
+        <div class="git-file-icon">📄</div>
+        <div>
+          <div class="git-file-name">index.html</div>
+          <div class="git-file-desc">Główna strona dashboardu (bez zmian, ale dołączona dla pewności)</div>
+        </div>
+      </div>
+      <div class="git-file">
+        <div class="git-file-icon">⚙️</div>
+        <div>
+          <div class="git-file-name">app.js</div>
+          <div class="git-file-desc">Logika aplikacji (bez zmian jeśli layout jest w localStorage)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="git-commands" id="git-commands-block">
+      <div class="cmd-comment"># Otwórz terminal w folderze projektu (lcz3/) i wpisz:</div>
+      <br>
+      git add index.html style.css app.js<br>
+      git commit -m "chore: update dashboard layout via editor"<br>
+      git push origin main<br>
+      <br>
+      <div class="cmd-comment"># GitHub Actions automatycznie skompiluje nowe APK</div>
+    </div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="copyGitCommands()">📋 Kopiuj komendy</button>
+      <button class="btn btn-success" onclick="closeGitModal()">✅ Rozumiem</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SNACKBAR ==================== -->
+<div id="snackbar"></div>
+
+<!-- ==================================================================
+     EDITOR JAVASCRIPT
+================================================================== -->
+<script>
+'use strict';
+
+// ── CONFIG ─────────────────────────────────────────────────────────
+const PHONE_W = 392;
+const PHONE_H = 770;
+
+// Default widget layout (portrait, px relative to phone screen)
+const WIDGET_DEFAULTS = {
+  clock:    { x: 14,  y: 30,  w: 364, h: 78,  scale: 1, visible: true },
+  timer:    { x: 14,  y: 122, w: 177, h: 110, scale: 1, visible: true },
+  battery:  { x: 201, y: 122, w: 177, h: 110, scale: 1, visible: true },
+  weather:  { x: 14,  y: 246, w: 177, h: 100, scale: 1, visible: true },
+  forecast: { x: 201, y: 246, w: 177, h: 100, scale: 1, visible: true },
+  map:      { x: 14,  y: 358, w: 364, h: 220, scale: 1, visible: true },
+};
+
+const WIDGET_META = {
+  clock:    { name: 'Zegar',         icon: '🕐', color: '#00ffcc' },
+  timer:    { name: 'Timer jazdy',   icon: '⏱', color: '#00aaff' },
+  battery:  { name: 'Bateria',       icon: '🔋', color: '#00e676' },
+  weather:  { name: 'Pogoda teraz',  icon: '🌤', color: '#ffea00' },
+  forecast: { name: 'Pogoda +1h',    icon: '⛅', color: '#e040fb' },
+  map:      { name: 'Mapa (GPS)',    icon: '🗺️', color: '#a78bfa' },
+};
+
+// ── STATE ───────────────────────────────────────────────────────────
+let state = {
+  theme: 'dark',
+  landscape: false,
+  zoom: 1,
+  selectedId: null,
+  widgets: JSON.parse(JSON.stringify(WIDGET_DEFAULTS)), // deep copy
+};
+
+// Load from localStorage if exists
+const saved = localStorage.getItem('lcz3_editor_state');
+if (saved) {
+  try {
+    const s = JSON.parse(saved);
+    if (s.theme) state.theme = s.theme;
+    if (s.widgets) state.widgets = s.widgets;
+  } catch(e) {}
+}
+
+// ── INIT ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildWidgetList();
+  buildPhoneWidgets();
+  setPreviewTheme(state.theme, false);
+  updateInfoPanel();
+  startClock();
+  autoFitPhone();
+
+  document.getElementById('btn-save-layout').addEventListener('click', saveLayout);
+  document.getElementById('btn-push-github').addEventListener('click', openGitModal);
+  document.getElementById('btn-reset-layout').addEventListener('click', resetLayout);
+
+  window.addEventListener('resize', autoFitPhone);
+});
+
+// ── AUTO-FIT PHONE ─────────────────────────────────────────────────
+function autoFitPhone() {
+  const canvas = document.getElementById('canvas-area');
+  const frame  = document.getElementById('phone-frame');
+  const cw = canvas.clientWidth  - 60;
+  const ch = canvas.clientHeight - 60;
+  const ph = state.landscape ? 392 : 770;
+  const pw = state.landscape ? 770 : 392;
+  const scaleW = cw / pw;
+  const scaleH = ch / ph;
+  const scale  = Math.min(scaleW, scaleH, 1); // never zoom in above 100%
+  const pct = Math.round(scale * 100);
+  state.zoom = scale;
+  frame.style.transform = `scale(${scale})`;
+  frame.style.transformOrigin = 'center top';
+  document.getElementById('zoom-slider').value = pct;
+  document.getElementById('zoom-val').textContent = pct + '%';
+}
+
+// ── CLOCK ───────────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2,'0');
+    const m = String(d.getMinutes()).padStart(2,'0');
+    const el = document.getElementById('pw-clock-time');
+    if (el) el.textContent = `${h}:${m}`;
+    const DAYS = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mo = String(d.getMonth()+1).padStart(2,'0');
+    const elD = document.getElementById('pw-clock-date');
+    if (elD) elD.textContent = `${DAYS[d.getDay()]} ${dd}-${mo}-${d.getFullYear()}`;
+    setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+// ── THEME ────────────────────────────────────────────────────────────
+function setPreviewTheme(name, save = true) {
+  state.theme = name;
+  const dash = document.getElementById('dash-preview');
+  dash.className = `theme-${name}`;
+
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.theme === name);
+  });
+
+  const names = { dark: 'Czarny', light: 'Biały', fancy: 'Bajerancki' };
+  document.getElementById('info-theme').textContent = names[name] || name;
+
+  if (save) persistState();
+}
+
+// ── BUILD WIDGET LIST (left panel) ──────────────────────────────────
+function buildWidgetList() {
+  const list = document.getElementById('widget-list');
+  list.innerHTML = '';
+  Object.entries(WIDGET_META).forEach(([id, meta]) => {
+    const visible = state.widgets[id]?.visible !== false;
+    const item = document.createElement('div');
+    item.className = 'widget-item' + (state.selectedId === id ? ' active' : '');
+    item.id = `witem-${id}`;
+    item.innerHTML = `
+      <span class="widget-item-name">
+        <span class="widget-item-icon">${meta.icon}</span>
+        ${meta.name}
+      </span>
+      <span class="wi-visible ${visible ? 'on' : ''}" title="Pokaż/ukryj" data-wid="${id}">
+        ${visible ? '👁' : '🚫'}
+      </span>
+    `;
+    item.querySelector('.wi-visible').addEventListener('click', e => {
+      e.stopPropagation();
+      toggleWidgetVisibility(id);
+    });
+    item.addEventListener('click', () => selectWidget(id));
+    list.appendChild(item);
+  });
+}
+
+// ── BUILD PHONE WIDGETS ──────────────────────────────────────────────
+function buildPhoneWidgets() {
+  const dash = document.getElementById('dash-preview');
+  // Remove old pwidgets
+  dash.querySelectorAll('.pwidget').forEach(el => el.remove());
+
+  Object.entries(state.widgets).forEach(([id, pos]) => {
+    const w = document.createElement('div');
+    w.className = 'pwidget';
+    w.id = `pw-${id}`;
+    w.style.left = pos.x + 'px';
+    w.style.top  = pos.y + 'px';
+    w.style.width  = pos.w + 'px';
+    w.style.height = pos.h + 'px';
+    w.style.display = pos.visible === false ? 'none' : '';
+    w.style.setProperty('--font-scale', pos.scale !== undefined ? pos.scale : 1);
+    w.innerHTML = getWidgetInnerHTML(id);
+
+    // Resize handle
+    const rh = document.createElement('div');
+    rh.className = 'p-resize';
+    rh.textContent = '⤡';
+    w.appendChild(rh);
+
+    // Drag
+    w.addEventListener('pointerdown', e => {
+      if (e.target.classList.contains('p-resize')) return;
+      startDrag(e, id);
+    });
+    rh.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      startResize(e, id);
+    });
+
+    w.addEventListener('click', e => {
+      if (!isDragging) selectWidget(id);
+    });
+
+    dash.appendChild(w);
+  });
+}
+
+function getWidgetInnerHTML(id) {
+  switch(id) {
+    case 'clock':
+      return `
+        <div id="pw-clock-time" class="pw-clock">00:00</div>
+        <div id="pw-clock-date" class="pw-date">Poniedziałek 01-01-2026</div>
+      `;
+    case 'timer':
+      return `
+        <div class="pw-label">CZAS JAZDY</div>
+        <div class="pw-trip">00:00:00</div>
+        <button class="pw-trip-btn">▶ START</button>
+      `;
+    case 'battery':
+      return `
+        <div class="pw-label">BATERIA</div>
+        <div class="pw-bat-row">
+          <div class="pw-bat-shell"><div class="pw-bat-fill"></div></div>
+          <div class="pw-bat-pct">75%</div>
+        </div>
+        <div class="pw-bat-status">Na baterii</div>
+      `;
+    case 'weather':
+      return `
+        <div class="pw-label">POGODA TERAZ</div>
+        <div class="pw-wx-row">
+          <span class="pw-wx-icon">🌤</span>
+          <span class="pw-wx-temp">18°C</span>
+        </div>
+        <div class="pw-wx-desc">Częściowe zachmurzenie</div>
+      `;
+    case 'forecast':
+      return `
+        <div class="pw-label">ZA GODZINĘ</div>
+        <div class="pw-wx-row">
+          <span class="pw-wx-icon">🌦</span>
+          <span class="pw-wx-temp">16°C</span>
+        </div>
+        <div class="pw-wx-desc">Przelotne opady</div>
+      `;
+    case 'map':
+      return `
+        <div class="pw-label">MAPA (PODGLĄD)</div>
+        <div class="pw-map-bg">📍 Widok mapy OSM</div>
+      `;
+    default: return `<div>${id}</div>`;
+  }
+}
+
+// ── SELECT WIDGET ────────────────────────────────────────────────────
+function selectWidget(id) {
+  state.selectedId = id;
+
+  document.querySelectorAll('.pwidget').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(`pw-${id}`);
+  if (el) el.classList.add('selected');
+
+  document.querySelectorAll('.widget-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById(`witem-${id}`);
+  if (item) item.classList.add('active');
+
+  renderPropsPanel(id);
+}
+
+function renderPropsPanel(id) {
+  const pos = state.widgets[id];
+  const meta = WIDGET_META[id];
+  const content = document.getElementById('props-content');
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <span style="font-size:1.4rem">${meta.icon}</span>
+      <strong style="font-size:0.9rem;">${meta.name}</strong>
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">X (lewo)</span>
+      <input type="number" class="prop-input" id="prop-x" value="${Math.round(pos.x)}" onchange="applyPropChange('${id}')" />
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Y (góra)</span>
+      <input type="number" class="prop-input" id="prop-y" value="${Math.round(pos.y)}" onchange="applyPropChange('${id}')" />
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Szerokość</span>
+      <input type="number" class="prop-input" id="prop-w" value="${Math.round(pos.w)}" onchange="applyPropChange('${id}')" />
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Wysokość</span>
+      <input type="number" class="prop-input" id="prop-h" value="${Math.round(pos.h)}" onchange="applyPropChange('${id}')" />
+    </div>
+    <div class="sep" style="margin: 8px 0 14px;"></div>
+    <div class="prop-row" style="margin-bottom: 2px;">
+      <span class="prop-label">Rozmiar czcionki (%)</span>
+      <span class="prop-val" id="prop-scale-val">${Math.round((pos.scale || 1) * 100)}%</span>
+    </div>
+    <input type="range" class="prop-slider" id="prop-scale" min="50" max="250" value="${Math.round((pos.scale || 1) * 100)}" oninput="applyScaleChange('${id}', this.value)" />
+
+    <div class="sep" style="margin: 14px 0;"></div>
+    <div style="font-size:0.72rem; color:var(--text-muted);">
+      Możesz też przeciągać widget bezpośrednio na ekranie telefonu.
+    </div>
+  `;
+}
+
+function applyPropChange(id) {
+  const x = parseInt(document.getElementById('prop-x')?.value) || 0;
+  const y = parseInt(document.getElementById('prop-y')?.value) || 0;
+  const w = parseInt(document.getElementById('prop-w')?.value) || 100;
+  const h = parseInt(document.getElementById('prop-h')?.value) || 60;
+
+  state.widgets[id].x = Math.max(0, Math.min(x, PHONE_W - 20));
+  state.widgets[id].y = Math.max(0, Math.min(y, PHONE_H - 20));
+  state.widgets[id].w = Math.max(60, Math.min(w, PHONE_W));
+  state.widgets[id].h = Math.max(40, Math.min(h, PHONE_H));
+
+  applyWidgetStyle(id);
+  persistState();
+}
+
+function applyScaleChange(id, pct) {
+  const scale = pct / 100;
+  state.widgets[id].scale = scale;
+  document.getElementById('prop-scale-val').textContent = pct + '%';
+  applyWidgetStyle(id);
+  persistState();
+}
+
+function applyWidgetStyle(id) {
+  const pos = state.widgets[id];
+  const el = document.getElementById(`pw-${id}`);
+  if (!el) return;
+  el.style.left = pos.x + 'px';
+  el.style.top  = pos.y + 'px';
+  el.style.width  = pos.w + 'px';
+  el.style.height = pos.h + 'px';
+  el.style.setProperty('--font-scale', pos.scale || 1);
+}
+
+// ── DRAG & RESIZE ────────────────────────────────────────────────────
+let isDragging = false;
+let dragState = null;
+
+function startDrag(e, id) {
+  e.preventDefault();
+  selectWidget(id);
+  isDragging = false;
+  const el = document.getElementById(`pw-${id}`);
+  const dash = document.getElementById('dash-preview');
+  const dashRect = dash.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+
+  const offX = e.clientX - elRect.left;
+  const offY = e.clientY - elRect.top;
+
+  dragState = { id, offX, offY, dashRect };
+
+  el.setPointerCapture(e.pointerId);
+
+  function onMove(ev) {
+    isDragging = true;
+    const dash2 = document.getElementById('dash-preview');
+    const dr = dash2.getBoundingClientRect();
+    let nx = (ev.clientX - dr.left - dragState.offX);
+    let ny = (ev.clientY - dr.top  - dragState.offY);
+    const pos = state.widgets[id];
+    nx = Math.max(0, Math.min(nx, PHONE_W - pos.w));
+    ny = Math.max(0, Math.min(ny, PHONE_H - pos.h));
+    state.widgets[id].x = Math.round(nx);
+    state.widgets[id].y = Math.round(ny);
+    el.style.left = nx + 'px';
+    el.style.top  = ny + 'px';
+  }
+
+  function onUp() {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    if (state.selectedId === id) renderPropsPanel(id);
+    persistState();
+    setTimeout(() => { isDragging = false; }, 50);
+  }
+
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+}
+
+function startResize(e, id) {
+  e.preventDefault();
+  const el = document.getElementById(`pw-${id}`);
+  const startW = state.widgets[id].w;
+  const startH = state.widgets[id].h;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const zoom = state.zoom;
+
+  el.setPointerCapture(e.pointerId);
+
+  function onMove(ev) {
+    const dw = (ev.clientX - startX) / zoom;
+    const dh = (ev.clientY - startY) / zoom;
+    const pos = state.widgets[id];
+    const nw = Math.max(60, Math.min(startW + dw, PHONE_W - pos.x));
+    const nh = Math.max(40, Math.min(startH + dh, PHONE_H - pos.y));
+    state.widgets[id].w = Math.round(nw);
+    state.widgets[id].h = Math.round(nh);
+    el.style.width  = nw + 'px';
+    el.style.height = nh + 'px';
+  }
+
+  function onUp() {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    if (state.selectedId === id) renderPropsPanel(id);
+    persistState();
+  }
+
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+}
+
+// ── VISIBILITY TOGGLE ────────────────────────────────────────────────
+function toggleWidgetVisibility(id) {
+  state.widgets[id].visible = !state.widgets[id].visible;
+  const el = document.getElementById(`pw-${id}`);
+  if (el) el.style.display = state.widgets[id].visible ? '' : 'none';
+  buildWidgetList();
+  updateInfoPanel();
+  persistState();
+}
+
+// ── LANDSCAPE ────────────────────────────────────────────────────────
+function toggleLandscape() {
+  state.landscape = document.getElementById('chk-landscape').checked;
+  const frame = document.getElementById('phone-frame');
+  const info  = document.getElementById('info-res');
+  const scaleInfo = document.getElementById('scale-info');
+
+  if (state.landscape) {
+    frame.style.width  = '770px';
+    frame.style.height = '392px';
+    frame.style.borderRadius = '28px';
+    info.textContent = '770×392';
+    scaleInfo.textContent = '770 × 392 px — Huawei P30 Pro poziom';
+    document.getElementById('dash-preview').style.background = 
+      document.getElementById('dash-preview').style.background;
+  } else {
+    frame.style.width  = '392px';
+    frame.style.height = '770px';
+    frame.style.borderRadius = '42px';
+    info.textContent = '392×770';
+    scaleInfo.textContent = '392 × 770 px — Huawei P30 Pro portret';
+  }
+  setTimeout(autoFitPhone, 50);
+}
+
+// ── ZOOM ─────────────────────────────────────────────────────────────
+function applyZoom(val) {
+  state.zoom = val / 100;
+  document.getElementById('zoom-val').textContent = val + '%';
+  document.getElementById('phone-frame').style.transform = `scale(${state.zoom})`;
+  document.getElementById('phone-frame').style.transformOrigin = 'center top';
+}
+
+// ── SNAP TO GRID ─────────────────────────────────────────────────────
+function snapToGrid() {
+  const GRID = 14;
+  Object.keys(state.widgets).forEach(id => {
+    const pos = state.widgets[id];
+    pos.x = Math.round(pos.x / GRID) * GRID;
+    pos.y = Math.round(pos.y / GRID) * GRID;
+    pos.w = Math.round(pos.w / GRID) * GRID;
+    pos.h = Math.round(pos.h / GRID) * GRID;
+    applyWidgetStyle(id);
+  });
+  persistState();
+  showSnack('⊞ Wyrównano do siatki 14px', 'info');
+}
+
+// ── DISTRIBUTE EVENLY ─────────────────────────────────────────────────
+function distributeEvenly() {
+  const visible = Object.entries(state.widgets).filter(([, p]) => p.visible !== false);
+  if (visible.length === 0) return;
+  const PAD = 14;
+  const GAP = 14;
+  const totalH = visible.reduce((s, [,p]) => s + p.h, 0);
+  const availH = PHONE_H - PAD * 2 - GAP * (visible.length - 1);
+  const scaleH = availH / totalH;
+  let cy = PAD;
+  visible.forEach(([id, pos]) => {
+    state.widgets[id].x = PAD;
+    state.widgets[id].y = Math.round(cy);
+    state.widgets[id].w = PHONE_W - PAD * 2;
+    state.widgets[id].h = Math.round(pos.h * scaleH);
+    cy += state.widgets[id].h + GAP;
+    applyWidgetStyle(id);
+  });
+  persistState();
+  showSnack('≡ Rozmieszczono równomiernie', 'info');
+}
+
+// ── RESET SELECTED ─────────────────────────────────────────────────────
+function resetSelectedWidget() {
+  if (!state.selectedId) { showSnack('Najpierw zaznacz widget', 'info'); return; }
+  const id = state.selectedId;
+  state.widgets[id] = { ...WIDGET_DEFAULTS[id] };
+  applyWidgetStyle(id);
+  renderPropsPanel(id);
+  persistState();
+  showSnack(`↩ Zresetowano: ${WIDGET_META[id].name}`, 'info');
+}
+
+// ── RESET ALL ─────────────────────────────────────────────────────────
+function resetLayout() {
+  if (!confirm('Zresetować układ do domyślnego?')) return;
+  state.widgets = JSON.parse(JSON.stringify(WIDGET_DEFAULTS));
+  Object.keys(state.widgets).forEach(id => applyWidgetStyle(id));
+  persistState();
+  showSnack('🔄 Układ zresetowany', 'info');
+}
+
+// ── SAVE LAYOUT ──────────────────────────────────────────────────────
+function saveLayout() {
+  persistState();
+  // Also save to lcz3_layout format for the real app
+  const lcz3Layout = {};
+  const scaleX = 392 / PHONE_W;
+  const scaleY = 770 / PHONE_H;
+  Object.entries(state.widgets).forEach(([id, pos]) => {
+    lcz3Layout[id] = {
+      left:   pos.x + 'px',
+      top:    pos.y + 'px',
+      width:  pos.w + 'px',
+      height: pos.h + 'px',
+      scale:  pos.scale !== undefined ? pos.scale : 1
+    };
+  });
+  localStorage.setItem('lcz3_layout', JSON.stringify(lcz3Layout));
+  localStorage.setItem('lcz3_theme', state.theme);
+
+  showSnack('💾 Układ zapisany! Możesz teraz wypchnąć na GitHub.', 'success');
+}
+
+// ── GIT MODAL ────────────────────────────────────────────────────────
+function openGitModal() {
+  saveLayout();
+  document.getElementById('git-modal').classList.add('open');
+}
+function closeGitModal() {
+  document.getElementById('git-modal').classList.remove('open');
+}
+
+function copyGitCommands() {
+  const cmds = `git add index.html style.css app.js\ngit commit -m "chore: update dashboard layout via editor"\ngit push origin main`;
+  navigator.clipboard.writeText(cmds).then(() => {
+    showSnack('📋 Skopiowano komendy git!', 'success');
+  }).catch(() => {
+    showSnack('Zaznacz i skopiuj ręcznie', 'info');
+  });
+}
+
+// Close modal on backdrop click
+document.getElementById('git-modal').addEventListener('click', e => {
+  if (e.target.id === 'git-modal') closeGitModal();
+});
+
+// ── INFO PANEL ───────────────────────────────────────────────────────
+function updateInfoPanel() {
+  const count = Object.values(state.widgets).filter(p => p.visible !== false).length;
+  document.getElementById('info-widgets').textContent = count;
+}
+
+// ── PERSIST STATE ────────────────────────────────────────────────────
+function persistState() {
+  localStorage.setItem('lcz3_editor_state', JSON.stringify({
+    theme: state.theme,
+    widgets: state.widgets,
+  }));
+}
+
+// ── SNACKBAR ─────────────────────────────────────────────────────────
+let snackTimer = null;
+function showSnack(msg, type = 'info') {
+  const el = document.getElementById('snackbar');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  if (snackTimer) clearTimeout(snackTimer);
+  snackTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

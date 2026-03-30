@@ -14,6 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 </head>
 <body class="theme-dark" id="app-body">
 
@@ -77,6 +79,13 @@
       <div class="edit-handle">⠿</div>
     </div>
 
+    <!-- Map Widget -->
+    <div class="widget" id="widget-map" data-id="map">
+      <div class="widget-label">MAPA (GPS)</div>
+      <div id="map-container"></div>
+      <div class="edit-handle">⠿</div>
+    </div>
+
   </div><!-- /#dashboard -->
 
   <!-- ===================== SETTINGS OVERLAY ===================== -->
@@ -136,6 +145,8 @@
     <button onclick="saveLayout(); toggleEditMode()">💾 Zapisz i wyjdź</button>
   </div>
 
+  <!-- Leaflet Map -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>
