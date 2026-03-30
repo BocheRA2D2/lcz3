@@ -727,6 +727,7 @@
     </div>
 
     <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-primary" onclick="copyLayoutJson()">📋 Kopiuj układ (JSON)</button>
       <button class="btn btn-ghost" onclick="copyGitCommands()">📋 Kopiuj komendy</button>
       <button class="btn btn-success" onclick="closeGitModal()">✅ Rozumiem</button>
     </div>
@@ -1277,6 +1278,15 @@ function copyGitCommands() {
     showSnack('📋 Skopiowano komendy git!', 'success');
   }).catch(() => {
     showSnack('Zaznacz i skopiuj ręcznie', 'info');
+  });
+}
+
+function copyLayoutJson() {
+  const layout = localStorage.getItem('lcz3_layout') || '{}';
+  navigator.clipboard.writeText(layout).then(() => {
+    showSnack('📋 Skopiowano układ do schowka! Wklej go na czacie AI.', 'success');
+  }).catch(() => {
+    showSnack('Błąd kopiowania układu.', 'danger');
   });
 }
 
