@@ -31,12 +31,14 @@
 
     <!-- Trip Timer Widget -->
     <div class="widget" id="widget-timer" data-id="timer">
-      <div class="widget-label">CZAS JAZDY</div>
+      <div class="widget-header">
+        <div class="widget-label">CZAS JAZDY</div>
+        <button id="btn-trip" class="trip-btn start" onclick="toggleTrip()">
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">START</span>
+        </button>
+      </div>
       <div id="trip-display" class="trip-display">00:00:00</div>
-      <button id="btn-trip" class="trip-btn start" onclick="toggleTrip()">
-        <span class="btn-icon">▶</span>
-        <span class="btn-text">START</span>
-      </button>
       <div class="edit-handle">⠿</div>
     </div>
 
