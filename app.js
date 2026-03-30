@@ -395,6 +395,7 @@ function applyPos(w, p) {
   w.style.top = p.top;
   w.style.width = p.width;
   if (p.height) w.style.height = p.height;
+  if (p.scale !== undefined) w.style.setProperty('--font-scale', p.scale);
 }
 
 function disableDragResize() {
@@ -513,6 +514,7 @@ function saveLayout() {
       top: w.style.top,
       width: w.style.width,
       height: w.style.height,
+      scale: w.style.getPropertyValue('--font-scale') || 1
     };
   });
   localStorage.setItem('lcz3_layout', JSON.stringify(layout));
@@ -552,6 +554,61 @@ function resetLayout() {
 }
 
 // ─────────────────────────────────────────────────────────
+// MAP INITIALIZATION
+// ─────────────────────────────────────────────────────────
+let lMap = null;
+let lMarker = null;
+
+function initMapWidget() {
+  const mapContainer = document.getElementById('map-container');
+  if (!mapContainer || typeof L === 'undefined') return;
+
+  // Domyślna lokalizacja startowa (Środek Polski jak GPS nie działa)
+  const defaultPos = [52.069167, 19.480556];
+  
+  lMap = L.map('map-container', {
+    zoomControl: false, // minimalistyczny interfejs
+    attributionControl: false
+  }).setView(defaultPos, 14);
+
+  // Wymuszenie odświeżenia rozmiaru w przypadku zmian układu
+  setTimeout(() => lMap.invalidateSize(), 500);
+
+  // Mroczny motyw mapy (CartoDB Dark Matter - darmowy)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(lMap);
+
+  lMarker = L.circleMarker(defaultPos, {
+    color: '#000',
+    weight: 2,
+    fillColor: '#00d4aa', // Kolor akcentu
+    fillOpacity: 1,
+    radius: 7
+  }).addTo(lMap);
+
+  // Nasłuchiwanie zmian na zewnątrz
+  window.addEventListener('resize', () => {
+    lMap.invalidateSize();
+  });
+
+  // Śledzenie GPS
+  if ('geolocation' in navigator) {
+    navigator.geolocation.watchPosition(pos => {
+      const latlng = [pos.coords.latitude, pos.coords.longitude];
+      lMarker.setLatLng(latlng);
+      lMap.setView(latlng);
+    }, err => {
+      console.warn('GPS Error mapping:', err);
+    }, {
+      enableHighAccuracy: true,
+      maximumAge: 10000,
+      timeout: 10000
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 // INIT – Load saved preferences
 // ─────────────────────────────────────────────────────────
 (function init() {
@@ -565,6 +622,9 @@ function resetLayout() {
 
   // Layout
   applyStoredLayout();
+
+  // Inicjalizacja Nowej Mapy
+  initMapWidget();
 
   // Wake lock (keep screen on – best effort)
   if ('wakeLock' in navigator) {
