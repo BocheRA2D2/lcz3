@@ -577,3 +577,108 @@ body.edit-mode .widget .font-handle { display: block; }
 #widget-battery { animation-delay: 0.12s; }
 #widget-weather { animation-delay: 0.18s; }
 #widget-forecast { animation-delay: 0.24s; }
+
+/* ==================== RADAR GLOW UI ==================== */
+.radar-glow {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 25vh; /* Covers lower quarter */
+  background: radial-gradient(ellipse at bottom, var(--radar-color, rgba(255,100,0,0.6)) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.5s ease, height 0.3s ease, transform 0.3s ease;
+  transform-origin: bottom center;
+  transform: translateY(100%);
+}
+.radar-glow.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.radar-flash {
+  position: fixed;
+  top: 0; bottom: 0; width: 40px;
+  background: linear-gradient(to right, rgba(255,50,0,0.8) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 501;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+.radar-flash.right {
+  right: 0; left: auto;
+  background: linear-gradient(to left, rgba(255,50,0,0.8) 0%, transparent 100%);
+}
+.radar-flash.flash {
+  animation: radarBlink 0.3s ease-in-out 3;
+}
+@keyframes radarBlink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* ==================== GHOST RACING ==================== */
+.ghost-btn.play { border-color: var(--battery-ok); color: var(--battery-ok); }
+.ghost-btn.stop-race { border-color: var(--battery-low); color: var(--battery-low); }
+.ghost-btn:disabled { opacity: 0.5; pointer-events: none; border-color: var(--text-muted); color: var(--text-muted); }
+
+.ghost-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 250px; overflow-y: auto;
+}
+
+.ghost-list-empty {
+  font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 20px 0;
+}
+
+.ghost-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--widget-border);
+  padding: 10px 14px; border-radius: 12px; cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.ghost-item.selected {
+  border-color: var(--accent); background: rgba(0,255,204,0.08);
+}
+.ghost-item-info {
+  display: flex; flex-direction: column;
+}
+.ghost-item-name { font-weight: 700; font-size: 0.9rem; color: var(--text); }
+.ghost-item-time { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Ghost Stats on Map */
+.ghost-stats {
+  position: absolute; top: 10px; right: 10px; left: 10px;
+  display: flex; justify-content: space-between; gap: 10px;
+  z-index: 1000; pointer-events: none;
+}
+.ghost-stat-box {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 8px 12px; text-align: center;
+  flex: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.ghost-stat-label {
+  display: block; font-size: 0.6rem; color: var(--text-muted);
+  letter-spacing: 0.1em; margin-bottom: 2px;
+}
+.ghost-stat-val {
+  font-family: var(--font-display); font-weight: 900;
+  font-size: 1.4rem; color: var(--text); text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+.ghost-stat-val.ahead { color: var(--battery-ok); }
+.ghost-stat-val.behind { color: var(--battery-low); }
+
+.recording-pulse {
+  animation: pulse-red 1.5s infinite;
+  border-color: var(--battery-low) !important;
+  color: var(--battery-low) !important;
+}
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255,23,68, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255,23,68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,23,68, 0); }
+}

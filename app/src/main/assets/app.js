@@ -582,6 +582,7 @@ function resetLayout() {
 // ─────────────────────────────────────────────────────────
 let lMap = null;
 let lMarker = null;
+let lGhostMarker = null;
 
 function initMapWidget() {
   const mapContainer = document.getElementById('map-container');
@@ -611,6 +612,14 @@ function initMapWidget() {
     radius: 7
   }).addTo(lMap);
 
+  lGhostMarker = L.circleMarker(defaultPos, {
+    color: '#000',
+    weight: 2,
+    fillColor: '#ff1744', // Czerwony dla ducha
+    fillOpacity: 1,
+    radius: 7
+  });
+
   // Nasłuchiwanie zmian na zewnątrz
   window.addEventListener('resize', () => {
     lMap.invalidateSize();
@@ -620,8 +629,11 @@ function initMapWidget() {
   if ('geolocation' in navigator) {
     navigator.geolocation.watchPosition(pos => {
       const latlng = [pos.coords.latitude, pos.coords.longitude];
-      lMarker.setLatLng(latlng);
-      lMap.setView(latlng);
+      state.geo = { lat: pos.coords.latitude, lon: pos.coords.longitude }; // Zawsze mamy najświeższe geo
+      if (lMarker) lMarker.setLatLng(latlng);
+      if (lMap) lMap.setView(latlng);
+      
+      if (typeof handleGhostGpsUpdate === 'function') handleGhostGpsUpdate(latlng[0], latlng[1]);
     }, err => {
       console.warn('GPS Error mapping:', err);
     }, {
@@ -630,6 +642,358 @@ function initMapWidget() {
       timeout: 10000
     });
   }
+}
+
+// ─────────────────────────────────────────────────────────
+// GARMIN VARIA RADAR BLE
+// ─────────────────────────────────────────────────────────
+function connectRadar() {
+  if (window.Android && window.Android.connectRadar) {
+    window.Android.connectRadar();
+  } else {
+    alert('Niedostępne. Otwórz w aplikacji Android.');
+  }
+}
+
+window.onRadarState = function(state) {
+  const btn = document.getElementById('btn-radar');
+  if (!btn) return;
+  if (state === 'scanning') btn.textContent = 'Szukanie...';
+  else if (state === 'connected') btn.textContent = '✅ Połączono';
+  else if (state === 'disconnected') btn.textContent = '❌ Rozłączono (Połącz)';
+  else if (state === 'timeout') btn.textContent = '📡 Spróbuj ponownie';
+};
+
+let radarClearTimeout = null;
+
+window.onRadarData = function(hexString) {
+  if (!hexString || hexString.length % 2 !== 0) return;
+  const bytes = [];
+  for (let i = 0; i < hexString.length; i += 2) {
+    bytes.push(parseInt(hexString.substr(i, 2), 16));
+  }
+  
+  if (bytes.length < 3) return; // puste
+  
+  let minDistance = 999;
+  let maxThreat = 0; // 0: no threat, 1: approaching, 2: fast approaching
+  
+  let startIndex = 1;
+  if (bytes.length % 3 === 0) startIndex = 0;
+  
+  for (let i = startIndex; i + 2 < bytes.length; i += 3) {
+      let b1 = bytes[i];
+      let b2 = bytes[i+1];
+      let b3 = bytes[i+2];
+      
+      let dist = b2; 
+      if (b1 > 10 && b1 <= 150) dist = b1;
+      if (b3 > 10 && b3 <= 150) dist = b3;
+
+      let threat = 1; 
+      if (dist < minDistance) {
+          minDistance = dist;
+      }
+      if (dist < 40) threat = 2; // heuristic for high threat
+      
+      maxThreat = Math.max(maxThreat, threat);
+  }
+  
+  updateRadarUI(minDistance, maxThreat);
+};
+
+function updateRadarUI(minDistance, maxThreat) {
+  const glow = document.getElementById('radar-glow');
+  const flashL = document.getElementById('radar-flash-left');
+  const flashR = document.getElementById('radar-flash-right');
+  
+  if (!glow) return;
+
+  if (minDistance > 140) {
+    glow.classList.remove('active');
+    return;
+  }
+  
+  if (radarClearTimeout) clearTimeout(radarClearTimeout);
+  radarClearTimeout = setTimeout(() => {
+    glow.classList.remove('active');
+  }, 3000); // zgaś po 3 sek braku danych
+  
+  let percent = Math.max(0, Math.min(100, (140 - minDistance) / 140 * 100));
+  
+  let color = 'rgba(255, 120, 0, 0.6)'; // orange
+  if (maxThreat >= 2 || minDistance < 30) {
+      color = 'rgba(255, 30, 0, 0.8)'; // red
+  } else if (minDistance > 80) {
+      color = 'rgba(200, 200, 0, 0.5)'; // yellow
+  }
+  
+  glow.style.setProperty('--radar-color', color);
+  
+  // Flash logic on bypass
+  if (minDistance <= 2) {
+      glow.classList.remove('active');
+      flashL.classList.add('flash');
+      flashR.classList.add('flash');
+      setTimeout(() => {
+          flashL.classList.remove('flash');
+          flashR.classList.remove('flash');
+      }, 1000); 
+  } else {
+      glow.classList.add('active');
+      glow.style.height = (25 + percent * 0.45) + 'vh'; // scales up to 70vh
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// GHOST RACING
+// ─────────────────────────────────────────────────────────
+const ghostState = {
+  isRecording: false,
+  recordStart: 0,
+  currentTrack: [], // {lat, lng, timeMs}
+  
+  isRacing: false,
+  raceStart: 0,
+  activeGhostTrack: null,
+  savedGhosts: [],
+  selectedGhostId: null,
+  raceLoopRAF: null
+};
+
+function getDist(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const p1 = lat1 * Math.PI/180;
+  const p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1) * Math.PI/180;
+  const dl = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dp/2) * Math.sin(dp/2) +
+            Math.cos(p1) * Math.cos(p2) *
+            Math.sin(dl/2) * Math.sin(dl/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function initGhostSystem() {
+  const fcWidget = document.getElementById('widget-forecast');
+  let lastTap = 0;
+  fcWidget.addEventListener('click', () => {
+    const now = Date.now();
+    if (now - lastTap < DOUBLE_TAP_MS) {
+      openGhostMenu();
+      lastTap = 0;
+    } else {
+      lastTap = now;
+    }
+  });
+  
+  const saved = localStorage.getItem('lcz3_ghosts');
+  if (saved) {
+    ghostState.savedGhosts = JSON.parse(saved);
+  }
+}
+
+function openGhostMenu() {
+  document.getElementById('ghost-overlay').classList.remove('hidden');
+  renderGhostList();
+}
+
+// Użyta przy zamykaniu X w HTML
+window.closeGhostMenu = function() {
+  document.getElementById('ghost-overlay').classList.add('hidden');
+}
+
+function renderGhostList() {
+  const list = document.getElementById('ghost-list');
+  if (ghostState.savedGhosts.length === 0) {
+    list.innerHTML = '<div class="ghost-list-empty">Brak nagranych duchów. Nagraj trasę!</div>';
+    document.getElementById('btn-ghost-play').disabled = true;
+    return;
+  }
+  
+  list.innerHTML = '';
+  ghostState.savedGhosts.forEach((g, idx) => {
+    const div = document.createElement('div');
+    div.className = 'ghost-item' + (ghostState.selectedGhostId === idx ? ' selected' : '');
+    
+    let durationStr = '--:--';
+    if (g.track && g.track.length > 0) {
+        const ms = g.track[g.track.length-1].timeMs;
+        const s = Math.floor(ms/1000)%60;
+        const m = Math.floor(ms/60000);
+        durationStr = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+    
+    div.innerHTML = `
+      <div class="ghost-item-info">
+        <span class="ghost-item-name">${g.name}</span>
+        <span class="ghost-item-time">Czas: ${durationStr} | Pkt: ${g.track.length}</span>
+      </div>
+    `;
+    div.onclick = () => {
+      ghostState.selectedGhostId = idx;
+      renderGhostList();
+      document.getElementById('btn-ghost-play').disabled = false;
+    };
+    list.appendChild(div);
+  });
+}
+
+window.toggleGhostRecording = function() {
+  const btn = document.getElementById('btn-ghost-record');
+  if (!ghostState.isRecording) {
+    if (!confirm('Rozpocząć nagrywanie nowej trasy?')) return;
+    ghostState.isRecording = true;
+    ghostState.recordStart = Date.now();
+    ghostState.currentTrack = [];
+    btn.textContent = '⏹ Zatrzymaj nagrywanie';
+    btn.classList.add('recording-pulse');
+  } else {
+    ghostState.isRecording = false;
+    btn.textContent = '🔴 Nagrywaj ducha';
+    btn.classList.remove('recording-pulse');
+    
+    if (ghostState.currentTrack.length > 2) {
+      const name = prompt('Podaj nazwę trasy:', 'Trasa ' + new Date().toLocaleString());
+      if (name) {
+        ghostState.savedGhosts.push({
+          name: name,
+          timestamp: Date.now(),
+          track: ghostState.currentTrack
+        });
+        localStorage.setItem('lcz3_ghosts', JSON.stringify(ghostState.savedGhosts));
+        renderGhostList();
+      }
+    } else {
+      alert('Trasa była za krótka by ją zapisać.');
+    }
+  }
+}
+
+window.clearAllGhosts = function() {
+  if (confirm('Usunąć wszystkie trasy?')) {
+    ghostState.savedGhosts = [];
+    ghostState.selectedGhostId = null;
+    localStorage.removeItem('lcz3_ghosts');
+    renderGhostList();
+    document.getElementById('btn-ghost-play').disabled = true;
+  }
+}
+
+function handleGhostGpsUpdate(lat, lng) {
+  if (ghostState.isRecording) {
+    ghostState.currentTrack.push({
+      lat: lat,
+      lng: lng,
+      timeMs: Date.now() - ghostState.recordStart
+    });
+  }
+}
+
+window.startGhostRace = function() {
+  if (ghostState.selectedGhostId === null || !ghostState.savedGhosts[ghostState.selectedGhostId]) return;
+  const ghost = ghostState.savedGhosts[ghostState.selectedGhostId];
+  if (!ghost.track || ghost.track.length < 2) return;
+  
+  ghostState.activeGhostTrack = ghost.track;
+  ghostState.isRacing = true;
+  ghostState.raceStart = Date.now();
+  
+  if (lMap && lGhostMarker) {
+      lGhostMarker.addTo(lMap);
+      lGhostMarker.setLatLng([ghost.track[0].lat, ghost.track[0].lng]);
+  }
+  
+  document.getElementById('ghost-stats').classList.remove('hidden');
+  document.getElementById('btn-ghost-play').classList.add('hidden');
+  document.getElementById('btn-ghost-stop').classList.remove('hidden');
+  
+  window.closeGhostMenu();
+  
+  if (ghostState.raceLoopRAF) cancelAnimationFrame(ghostState.raceLoopRAF);
+  raceLoop();
+}
+
+window.stopGhostRace = function() {
+  ghostState.isRacing = false;
+  ghostState.activeGhostTrack = null;
+  if (lMap && lGhostMarker) {
+      lGhostMarker.remove();
+  }
+  document.getElementById('ghost-stats').classList.add('hidden');
+  document.getElementById('btn-ghost-play').classList.remove('hidden');
+  document.getElementById('btn-ghost-stop').classList.add('hidden');
+  if (ghostState.raceLoopRAF) cancelAnimationFrame(ghostState.raceLoopRAF);
+}
+
+function raceLoop() {
+  if (!ghostState.isRacing || !ghostState.activeGhostTrack || !state.geo) return;
+  
+  const elapsed = Date.now() - ghostState.raceStart;
+  const track = ghostState.activeGhostTrack;
+  
+  let gIdx = 0;
+  while (gIdx < track.length - 1 && track[gIdx+1].timeMs < elapsed) {
+    gIdx++;
+  }
+  
+  let gLat, gLng;
+  let finished = false;
+  if (gIdx >= track.length - 1) {
+    gLat = track[track.length-1].lat;
+    gLng = track[track.length-1].lng;
+    finished = true;
+  } else {
+    const t0 = track[gIdx];
+    const t1 = track[gIdx+1];
+    const range = t1.timeMs - t0.timeMs;
+    const progress = range === 0 ? 0 : (elapsed - t0.timeMs) / range;
+    gLat = t0.lat + (t1.lat - t0.lat) * progress;
+    gLng = t0.lng + (t1.lng - t0.lng) * progress;
+  }
+  
+  if (lGhostMarker) {
+    lGhostMarker.setLatLng([gLat, gLng]);
+  }
+  
+  const pLat = state.geo.lat;
+  const pLng = state.geo.lon;
+  
+  // Straight line real-time distance between ghost marker and player marker
+  const distDiff = getDist(pLat, pLng, gLat, gLng);
+  
+  // Find who is ahead by finding closest path point time to current player position
+  let minDist = Infinity;
+  let closestTime = 0;
+  for (let i = 0; i < track.length; i++) {
+    const d = getDist(pLat, pLng, track[i].lat, track[i].lng);
+    if (d < minDist) {
+      minDist = d;
+      closestTime = track[i].timeMs;
+    }
+  }
+  
+  const timeDeltaSec = (closestTime - elapsed) / 1000;
+  
+  const elTime = document.getElementById('ghost-time-diff');
+  const elDist = document.getElementById('ghost-dist-diff');
+  
+  if (finished && elapsed > track[track.length-1].timeMs) {
+     elTime.textContent = 'KONIEC';
+     elTime.className = 'ghost-stat-val';
+     elDist.textContent = '---';
+     elDist.className = 'ghost-stat-val';
+  } else {
+      const isTimeAhead = timeDeltaSec >= 0;
+      elTime.textContent = (isTimeAhead ? '+' : '') + timeDeltaSec.toFixed(1) + ' s';
+      elTime.className = 'ghost-stat-val ' + (isTimeAhead ? 'ahead' : 'behind');
+      
+      const isDistAhead = timeDeltaSec >= 0; 
+      elDist.textContent = (isDistAhead ? '+' : '-') + Math.round(distDiff) + ' m';
+      elDist.className = 'ghost-stat-val ' + (isDistAhead ? 'ahead' : 'behind');
+  }
+
+  ghostState.raceLoopRAF = requestAnimationFrame(raceLoop);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -649,6 +1013,9 @@ function initMapWidget() {
 
   // Inicjalizacja Nowej Mapy
   initMapWidget();
+
+  // Inicjalizacja Ducha
+  initGhostSystem();
 
   // Wake lock (keep screen on – best effort)
   if ('wakeLock' in navigator) {

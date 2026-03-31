@@ -84,7 +84,19 @@
     <!-- Map Widget -->
     <div class="widget" id="widget-map" data-id="map">
       <div class="widget-label">MAPA (GPS)</div>
-      <div id="map-container"></div>
+      <div id="map-container">
+        <!-- Ghost Stats Overlay (Visible only during race) -->
+        <div id="ghost-stats" class="ghost-stats hidden">
+          <div class="ghost-stat-box">
+            <span class="ghost-stat-label">CZAS</span>
+            <span id="ghost-time-diff" class="ghost-stat-val">--</span>
+          </div>
+          <div class="ghost-stat-box">
+            <span class="ghost-stat-label">DYSTANS</span>
+            <span id="ghost-dist-diff" class="ghost-stat-val">--</span>
+          </div>
+        </div>
+      </div>
       <div class="edit-handle">⠿</div>
     </div>
 
@@ -134,6 +146,12 @@
         <button class="edit-mode-btn reset" id="btn-reset" onclick="resetLayout()">🔄 Resetuj układ</button>
       </div>
 
+      <!-- Radar -->
+      <div class="settings-section">
+        <div class="settings-section-title">Radar Varia (BLE)</div>
+        <button class="edit-mode-btn" id="btn-radar" onclick="connectRadar()">📡 Połącz z Varia</button>
+      </div>
+
       <!-- Fullscreen -->
       <div class="settings-section">
         <button class="edit-mode-btn" onclick="requestFullscreen()">⛶ Pełny ekran</button>
@@ -141,11 +159,41 @@
     </div>
   </div><!-- /#settings-overlay -->
 
+  <!-- ===================== GHOST RACING OVERLAY ===================== -->
+  <div id="ghost-overlay" class="settings-overlay hidden">
+    <div class="settings-panel ghost-panel">
+      <div class="settings-header">
+        <span class="settings-title">👻 Wyścig z duchem</span>
+        <button class="settings-close" onclick="closeGhostMenu()">✕</button>
+      </div>
+
+      <!-- Actions -->
+      <div class="settings-section">
+        <button class="edit-mode-btn ghost-btn" id="btn-ghost-record" onclick="toggleGhostRecording()">🔴 Nagrywaj ducha</button>
+        <button class="edit-mode-btn ghost-btn play" id="btn-ghost-play" onclick="startGhostRace()" disabled>▶️ Start (wybierz ducha)</button>
+        <button class="edit-mode-btn ghost-btn stop-race hidden" id="btn-ghost-stop" onclick="stopGhostRace()">⏹ Przerwij wyścig</button>
+      </div>
+
+      <!-- Ghost List -->
+      <div class="settings-section">
+        <div class="settings-section-title">Zapisane duchy <button id="btn-ghost-clear" class="settings-close" style="font-size:0.8rem;float:right;margin-top:-6px;" onclick="clearAllGhosts()">🗑 Usuń wszystkie</button></div>
+        <div id="ghost-list" class="ghost-list">
+          <div class="ghost-list-empty">Brak nagranych duchów. Nagraj trasę!</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /#ghost-overlay -->
+
   <!-- ===================== EDIT MODE INDICATOR ===================== -->
   <div id="edit-bar" class="edit-bar hidden">
     <span>TRYB EDYCJI – przeciągaj i skaluj widgety</span>
     <button onclick="saveLayout(); toggleEditMode()">💾 Zapisz i wyjdź</button>
   </div>
+
+  <!-- ===================== RADAR GLOW UI ===================== -->
+  <div id="radar-glow" class="radar-glow"></div>
+  <div id="radar-flash-left" class="radar-flash left"></div>
+  <div id="radar-flash-right" class="radar-flash right"></div>
 
   <!-- Leaflet Map -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
