@@ -84,20 +84,22 @@
     <!-- Map Widget -->
     <div class="widget" id="widget-map" data-id="map">
       <div class="widget-label">MAPA (GPS)</div>
-      <div id="map-container">
-        <!-- Ghost Stats Overlay (Visible only during race) -->
-        <div id="ghost-stats" class="ghost-stats hidden">
-          <div class="ghost-stat-box">
-            <span class="ghost-stat-label">CZAS</span>
-            <span id="ghost-time-diff" class="ghost-stat-val">--</span>
-          </div>
-          <div class="ghost-stat-box">
-            <span class="ghost-stat-label">DYSTANS</span>
-            <span id="ghost-dist-diff" class="ghost-stat-val">--</span>
-          </div>
-          <button id="btn-ghost-finish" class="ghost-finish-btn" onclick="triggerRaceFinish()">🏁 Zakończ</button>
-        </div>
+      <div id="map-container"></div>
+      <div class="edit-handle">⠿</div>
+    </div>
+
+    <!-- Ghost Stats Widget (Visible during race or edit mode) -->
+    <div class="widget hidden" id="ghost-stats" data-id="ghoststats">
+      <div class="widget-label">WYŚCIG Z DUCHEM</div>
+      <div class="ghost-stat-box">
+        <span class="ghost-stat-label">CZAS</span>
+        <span id="ghost-time-diff" class="ghost-stat-val">--</span>
       </div>
+      <div class="ghost-stat-box">
+        <span class="ghost-stat-label">DYSTANS</span>
+        <span id="ghost-dist-diff" class="ghost-stat-val">--</span>
+      </div>
+      <button id="btn-ghost-finish" class="ghost-finish-btn" onclick="triggerRaceFinish()">🏁 Zakończ</button>
       <div class="edit-handle">⠿</div>
     </div>
 

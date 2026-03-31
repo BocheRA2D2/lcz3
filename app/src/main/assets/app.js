@@ -381,14 +381,21 @@ function toggleEditMode() {
   editBar.classList.toggle('hidden', !state.editMode);
   btnEdit.textContent = state.editMode ? '✏ Wyjdź z edycji' : '✏ Tryb edycji';
   btnSave.style.display = state.editMode ? 'block' : 'none';
+  
+  const ghostStatsEl = document.getElementById('ghost-stats');
 
   if (state.editMode) {
+    if (ghostStatsEl) ghostStatsEl.classList.remove('hidden');
     enableDragResize();
     // Make dashboard position:relative so absolute widgets work
     document.getElementById('dashboard').style.position = 'relative';
     // Convert grid to absolute positions
     convertToAbsolute();
   } else {
+    // Hide ghost stats if we are not racing right now
+    if (ghostStatsEl && (!(typeof ghostState !== 'undefined' && ghostState.isRacing))) {
+      ghostStatsEl.classList.add('hidden');
+    }
     disableDragResize();
   }
 }

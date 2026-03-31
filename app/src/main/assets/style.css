@@ -580,8 +580,6 @@ body.edit-mode .widget .font-handle { display: block; }
 
 /* ==================== GHOST RACE UI ==================== */
 .ghost-stats {
-  position: absolute;
-  top: 10px; right: 10px;
   background: rgba(20, 20, 20, 0.85);
   border: 1px solid var(--accent);
   border-radius: 8px;
