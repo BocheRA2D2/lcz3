@@ -11,6 +11,37 @@ const WEATHER_REFRESH_MS = 10 * 60 * 1000; // 10 min
 const BATTERY_REFRESH_MS = 30 * 1000;       // 30 s
 const DOUBLE_TAP_MS = 400;                  // double-tap window
 
+// ─── CUSTOM MODAL SYSTEM ────────────────────────────────
+let modalResolve = null;
+function showCustomModal(title, msg, type = 'confirm', defaultValue = '') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('custom-modal');
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const inputContainer = document.getElementById('modal-input-container');
+    const inputEl = document.getElementById('modal-input');
+    const btnOk = document.getElementById('modal-btn-ok');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.textContent = title;
+    msgEl.textContent = msg;
+    inputContainer.style.display = type === 'prompt' ? 'block' : 'none';
+    if (type === 'prompt') inputEl.value = defaultValue;
+
+    overlay.classList.add('active');
+
+    const cleanup = (val) => {
+      overlay.classList.remove('active');
+      btnOk.onclick = null;
+      btnCancel.onclick = null;
+      resolve(val);
+    };
+
+    btnOk.onclick = () => cleanup(type === 'prompt' ? inputEl.value : true);
+    btnCancel.onclick = () => cleanup(false);
+  });
+}
+
 // ─── STATE ───────────────────────────────────────────────
 const state = {
   theme: 'dark',
@@ -411,8 +442,18 @@ function convertToAbsolute() {
       const rect = w.getBoundingClientRect();
       const dbRect = db.getBoundingClientRect();
       w.style.position = 'absolute';
-      w.style.left = (rect.left - dbRect.left) + 'px';
-      w.style.top = (rect.top - dbRect.top) + 'px';
+      
+      let left = rect.left - dbRect.left;
+      let top = rect.top - dbRect.top;
+      
+      // Specyficzna poprawka dla nowo dodanych widgetów jak ghost-stats
+      // Jeśli nakłada się na zegar (lewy górny róg), przesuń go niżej
+      if (id === 'ghoststats' && left < 100 && top < 100) {
+          top = 180; // Przesuń pod zegar domyślnie
+      }
+
+      w.style.left = left + 'px';
+      w.style.top = top + 'px';
       w.style.width = rect.width + 'px';
       w.style.height = 'auto';
     }
@@ -847,10 +888,11 @@ function renderGhostList() {
   });
 }
 
-window.toggleGhostRecording = function() {
+window.toggleGhostRecording = async function() {
   const btn = document.getElementById('btn-ghost-record');
   if (!ghostState.isRecording) {
-    if (!confirm('Rozpocząć nagrywanie nowej trasy?')) return;
+    const ok = await showCustomModal('Nagrywanie', 'Rozpocząć nagrywanie nowej trasy?');
+    if (!ok) return;
     ghostState.isRecording = true;
     ghostState.recordStart = Date.now();
     ghostState.currentTrack = [];
@@ -862,7 +904,7 @@ window.toggleGhostRecording = function() {
     btn.classList.remove('recording-pulse');
     
     if (ghostState.currentTrack.length > 2) {
-      const name = prompt('Podaj nazwę trasy:', 'Trasa ' + new Date().toLocaleString());
+      const name = await showCustomModal('Zapisz trasę', 'Podaj nazwę dla zapisanego ducha:', 'prompt', 'Trasa ' + new Date().toLocaleString());
       if (name) {
         ghostState.savedGhosts.push({
           name: name,
@@ -873,13 +915,14 @@ window.toggleGhostRecording = function() {
         renderGhostList();
       }
     } else {
-      alert('Trasa była za krótka by ją zapisać.');
+      showCustomModal('Błąd', 'Trasa była za krótka by ją zapisać.', 'alert');
     }
   }
 }
 
-window.clearAllGhosts = function() {
-  if (confirm('Usunąć wszystkie trasy?')) {
+window.clearAllGhosts = async function() {
+  const ok = await showCustomModal('Usuwanie', 'Czy na pewno chcesz usunąć wszystkie zapisane trasy?');
+  if (ok) {
     ghostState.savedGhosts = [];
     ghostState.selectedGhostId = null;
     localStorage.removeItem('lcz3_ghosts');
@@ -984,7 +1027,7 @@ window.triggerRaceFinish = function() {
   if (ghostState.raceLoopRAF) cancelAnimationFrame(ghostState.raceLoopRAF);
 }
 
-window.saveRaceAsGhost = function() {
+window.saveRaceAsGhost = async function() {
   const name = document.getElementById('summary-ghost-name').value || ('Trasa ' + new Date().toLocaleString());
   if (ghostState.currentRaceTrack && ghostState.currentRaceTrack.length > 2) {
       ghostState.savedGhosts.push({
@@ -994,9 +1037,9 @@ window.saveRaceAsGhost = function() {
       });
       localStorage.setItem('lcz3_ghosts', JSON.stringify(ghostState.savedGhosts));
       renderGhostList();
-      alert('Duch zapisany pomyślnie!');
+      await showCustomModal('Sukces', 'Duch zapisany pomyślnie!', 'alert');
   } else {
-      alert('Za mało danych GPS, by zapisać trasę.');
+      await showCustomModal('Błąd', 'Za mało danych GPS, by zapisać trasę.', 'alert');
   }
   
   document.getElementById('race-summary-overlay').classList.add('hidden');
