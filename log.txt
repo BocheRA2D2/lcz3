@@ -1,0 +1,41 @@
+commit 57dba7957c138ab624eab6bbcf124efb85c78a5b
+Merge: e2b6dd7 39418f6
+Author: AI Builder <bot@example.com>
+Date:   Mon Mar 30 09:55:30 2026 +0200
+
+    Merge branch 'main' of https://github.com/BocheRA2D2/lcz3
+
+commit e2b6dd7ed5caca3c0d45faf7b5eb2e93f171df14
+Author: AI Builder <bot@example.com>
+Date:   Mon Mar 30 09:53:10 2026 +0200
+
+    feat: upgrade layout editor with font scaling and OSM map integration
+
+ app.js      |   60 +++
+ editor.html | 1313 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ index.html  |   11 +
+ style.css   |   47 ++-
+ 4 files changed, 1421 insertions(+), 10 deletions(-)
+
+commit 39418f6eeb9d81751320dbb1173f76e72e4eedea
+Author: BocheRA2D2 <54627738+BocheRA2D2@users.noreply.github.com>
+Date:   Mon Mar 30 09:47:10 2026 +0200
+
+    Delete app/src/main/assets directory
+
+ app/src/main/assets/app.js     | 583 -----------------------------------------
+ app/src/main/assets/index.html | 141 ----------
+ app/src/main/assets/style.css  | 506 -----------------------------------
+ 3 files changed, 1230 deletions(-)
+
+commit 4c8a54ab62cea2e517999a87b66c9ed5b0c7ad3f
+Author: BocheRA2D2 <54627738+BocheRA2D2@users.noreply.github.com>
+Date:   Mon Mar 30 09:46:45 2026 +0200
+
+    Add files via upload
+
+commit 8cee2fa45a4d649d7010900b9594bee75f883dab
+Author: BocheRA2D2 <54627738+BocheRA2D2@users.noreply.github.com>
+Date:   Mon Mar 30 09:45:33 2026 +0200
+
+    Add files via upload

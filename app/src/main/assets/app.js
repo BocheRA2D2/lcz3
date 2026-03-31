@@ -756,6 +756,7 @@ const ghostState = {
   isRacing: false,
   raceStart: 0,
   activeGhostTrack: null,
+  currentRaceTrack: [], // {lat, lng, timeMs}
   savedGhosts: [],
   selectedGhostId: null,
   raceLoopRAF: null
@@ -881,11 +882,19 @@ window.clearAllGhosts = function() {
 }
 
 function handleGhostGpsUpdate(lat, lng) {
+  const now = Date.now();
   if (ghostState.isRecording) {
     ghostState.currentTrack.push({
       lat: lat,
       lng: lng,
-      timeMs: Date.now() - ghostState.recordStart
+      timeMs: now - ghostState.recordStart
+    });
+  }
+  if (ghostState.isRacing) {
+    ghostState.currentRaceTrack.push({
+      lat: lat,
+      lng: lng,
+      timeMs: now - ghostState.raceStart
     });
   }
 }
@@ -898,6 +907,7 @@ window.startGhostRace = function() {
   ghostState.activeGhostTrack = ghost.track;
   ghostState.isRacing = true;
   ghostState.raceStart = Date.now();
+  ghostState.currentRaceTrack = [];
   
   if (lMap && lGhostMarker) {
       lGhostMarker.addTo(lMap);
@@ -924,6 +934,71 @@ window.stopGhostRace = function() {
   document.getElementById('btn-ghost-play').classList.remove('hidden');
   document.getElementById('btn-ghost-stop').classList.add('hidden');
   if (ghostState.raceLoopRAF) cancelAnimationFrame(ghostState.raceLoopRAF);
+}
+
+window.triggerRaceFinish = function() {
+  if (!ghostState.isRacing || !ghostState.activeGhostTrack) return;
+  
+  const ghostTrack = ghostState.activeGhostTrack;
+  const ghostTimeMs = ghostTrack[ghostTrack.length - 1].timeMs;
+  
+  // Mój czas to obecny upływ czasu ALBO czas ostatniego punktu na mojej trasie
+  const myTimeMs = ghostState.currentRaceTrack.length > 0 
+      ? ghostState.currentRaceTrack[ghostState.currentRaceTrack.length - 1].timeMs 
+      : (Date.now() - ghostState.raceStart);
+      
+  const diffMs = myTimeMs - ghostTimeMs;
+  const diffSec = diffMs / 1000;
+  
+  const titleEl = document.getElementById('summary-result-text');
+  if (diffSec < 0) {
+      titleEl.textContent = 'Wygrałeś! 🥇 (' + Math.abs(diffSec).toFixed(1) + 's przewagi)';
+      titleEl.style.color = '#00d4aa';
+  } else {
+      titleEl.textContent = 'Przegrałeś! 🥈 (' + Math.abs(diffSec).toFixed(1) + 's straty)';
+      titleEl.style.color = '#ff1744';
+  }
+  
+  function formatMs(ms) {
+      const s = Math.floor(ms/1000)%60;
+      const m = Math.floor(ms/60000);
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  
+  document.getElementById('summary-my-time').textContent = formatMs(myTimeMs);
+  document.getElementById('summary-ghost-time').textContent = formatMs(ghostTimeMs);
+  
+  const ghostNamePrefix = ghostState.savedGhosts[ghostState.selectedGhostId] ? ghostState.savedGhosts[ghostState.selectedGhostId].name : 'Nieznany';
+  document.getElementById('summary-ghost-name').value = 'Rewanż: ' + ghostNamePrefix + ' (' + new Date().toLocaleString() + ')';
+  
+  document.getElementById('race-summary-overlay').classList.remove('hidden');
+  
+  ghostState.isRacing = false;
+  if (ghostState.raceLoopRAF) cancelAnimationFrame(ghostState.raceLoopRAF);
+}
+
+window.saveRaceAsGhost = function() {
+  const name = document.getElementById('summary-ghost-name').value || ('Trasa ' + new Date().toLocaleString());
+  if (ghostState.currentRaceTrack && ghostState.currentRaceTrack.length > 2) {
+      ghostState.savedGhosts.push({
+          name: name,
+          timestamp: Date.now(),
+          track: ghostState.currentRaceTrack
+      });
+      localStorage.setItem('lcz3_ghosts', JSON.stringify(ghostState.savedGhosts));
+      renderGhostList();
+      alert('Duch zapisany pomyślnie!');
+  } else {
+      alert('Za mało danych GPS, by zapisać trasę.');
+  }
+  
+  document.getElementById('race-summary-overlay').classList.add('hidden');
+  stopGhostRace(); // full reset
+}
+
+window.discardRace = function() {
+  document.getElementById('race-summary-overlay').classList.add('hidden');
+  stopGhostRace(); // full reset
 }
 
 function raceLoop() {

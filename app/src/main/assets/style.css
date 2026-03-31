@@ -578,6 +578,81 @@ body.edit-mode .widget .font-handle { display: block; }
 #widget-weather { animation-delay: 0.18s; }
 #widget-forecast { animation-delay: 0.24s; }
 
+/* ==================== GHOST RACE UI ==================== */
+.ghost-stats {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: rgba(20, 20, 20, 0.85);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ghost-stat-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.ghost-stat-label {
+  font-size: 0.8rem;
+  color: #aaa;
+  font-family: 'Inter', sans-serif;
+}
+.ghost-stat-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  min-width: 60px;
+  text-align: right;
+}
+.ghost-stat-val.ahead { color: #00d4aa; }
+.ghost-stat-val.behind { color: #ff1744; }
+
+.ghost-finish-btn {
+  margin-top: 5px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.ghost-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid #444;
+  margin-top: 10px;
+}
+.ghost-item {
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+.ghost-item.selected {
+  background: rgba(0, 212, 170, 0.2);
+  border-left: 3px solid var(--accent);
+}
+.ghost-item-info {
+  display: flex;
+  flex-direction: column;
+}
+.ghost-item-name { font-weight: bold; }
+.ghost-item-time { font-size: 0.8rem; color: #888; }
+.ghost-btn { background: #333; margin-bottom: 5px; }
+.ghost-btn.play { background: #008800; }
+.ghost-btn.stop-race { background: #aa0000; }
+.recording-pulse { animation: pulseRed 1s infinite alternate; }
+@keyframes pulseRed { from { background: #880000; } to { background: #ff0000; } }
+
 /* ==================== RADAR GLOW UI ==================== */
 .radar-glow {
   position: fixed;

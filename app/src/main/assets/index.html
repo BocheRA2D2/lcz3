@@ -95,6 +95,7 @@
             <span class="ghost-stat-label">DYSTANS</span>
             <span id="ghost-dist-diff" class="ghost-stat-val">--</span>
           </div>
+          <button id="btn-ghost-finish" class="ghost-finish-btn" onclick="triggerRaceFinish()">🏁 Zakończ</button>
         </div>
       </div>
       <div class="edit-handle">⠿</div>
@@ -189,6 +190,38 @@
     <span>TRYB EDYCJI – przeciągaj i skaluj widgety</span>
     <button onclick="saveLayout(); toggleEditMode()">💾 Zapisz i wyjdź</button>
   </div>
+
+  <!-- ===================== RACE SUMMARY OVERLAY ===================== -->
+  <div id="race-summary-overlay" class="settings-overlay hidden">
+    <div class="settings-panel ghost-panel">
+      <div class="settings-header">
+        <span class="settings-title" id="summary-title" style="font-size: 1.5rem;">🏁 Podsumowanie</span>
+      </div>
+
+      <div class="settings-section" style="text-align: center;">
+        <div id="summary-result-text" style="font-size: 1.8rem; font-weight: bold; margin-bottom: 20px;">Wygrałeś!</div>
+        
+        <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+          <div>
+            <div style="font-size: 0.8rem; color: #aaa;">Twój czas</div>
+            <div id="summary-my-time" style="font-size: 1.5rem; font-weight: bold; color: #fff;">--:--</div>
+          </div>
+          <div>
+            <div style="font-size: 0.8rem; color: #aaa;">Czas ducha</div>
+            <div id="summary-ghost-time" style="font-size: 1.5rem; font-weight: bold; color: #aaa;">--:--</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">Zapisz jako nowy duch:</div>
+          <input type="text" id="summary-ghost-name" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 1rem; text-align: center;" />
+        </div>
+
+        <button class="edit-mode-btn save" style="width: 100%; margin-bottom: 10px; display: block;" onclick="saveRaceAsGhost()">💾 Zapisz Trasę</button>
+        <button class="edit-mode-btn stop-race" style="width: 100%; display: block;" onclick="discardRace()">🗑 Odrzuć</button>
+      </div>
+    </div>
+  </div><!-- /#race-summary-overlay -->
 
   <!-- ===================== RADAR GLOW UI ===================== -->
   <div id="radar-glow" class="radar-glow"></div>

@@ -1,0 +1,19 @@
+On branch main
+Your branch and 'origin/main' have diverged,
+and have 1 and 4 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+
+All conflicts fixed but you are still merging.
+  (use "git commit" to conclude merge)
+
+Changes to be committed:
+	deleted:    app/src/main/assets/app.js
+	deleted:    app/src/main/assets/index.html
+	deleted:    app/src/main/assets/style.css
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.vscode/
+	status.txt
+	status_ansi.txt
+
