@@ -876,7 +876,7 @@ function renderGhostList() {
     div.innerHTML = `
       <div class="ghost-item-info">
         <span class="ghost-item-name">${g.name}</span>
-        <span class="ghost-item-time">Czas: ${durationStr} | Pkt: ${g.track.length}</span>
+        <span class="ghost-item-time">Czas: ${durationStr}</span>
       </div>
     `;
     div.onclick = () => {
@@ -992,10 +992,8 @@ window.triggerRaceFinish = function() {
   const ghostTrack = ghostState.activeGhostTrack;
   const ghostTimeMs = ghostTrack[ghostTrack.length - 1].timeMs;
   
-  // Mój czas to obecny upływ czasu ALBO czas ostatniego punktu na mojej trasie
-  const myTimeMs = ghostState.currentRaceTrack.length > 0 
-      ? ghostState.currentRaceTrack[ghostState.currentRaceTrack.length - 1].timeMs 
-      : (Date.now() - ghostState.raceStart);
+  // Mój czas to dokładny czas od kliknięcia START do kliknięcia ZAKOŃCZ (stoper)
+  const myTimeMs = Date.now() - ghostState.raceStart;
       
   const diffMs = myTimeMs - ghostTimeMs;
   const diffSec = diffMs / 1000;
@@ -1103,20 +1101,13 @@ function raceLoop() {
   const elTime = document.getElementById('ghost-time-diff');
   const elDist = document.getElementById('ghost-dist-diff');
   
-  if (finished && elapsed > track[track.length-1].timeMs) {
-     elTime.textContent = 'KONIEC';
-     elTime.className = 'ghost-stat-val';
-     elDist.textContent = '---';
-     elDist.className = 'ghost-stat-val';
-  } else {
-      const isTimeAhead = timeDeltaSec >= 0;
-      elTime.textContent = (isTimeAhead ? '+' : '') + timeDeltaSec.toFixed(1) + ' s';
-      elTime.className = 'ghost-stat-val ' + (isTimeAhead ? 'ahead' : 'behind');
-      
-      const isDistAhead = timeDeltaSec >= 0; 
-      elDist.textContent = (isDistAhead ? '+' : '-') + Math.round(distDiff) + ' m';
-      elDist.className = 'ghost-stat-val ' + (isDistAhead ? 'ahead' : 'behind');
-  }
+  const isTimeAhead = timeDeltaSec >= 0;
+  elTime.textContent = (isTimeAhead ? '+' : '') + timeDeltaSec.toFixed(1) + ' s';
+  elTime.className = 'ghost-stat-val ' + (isTimeAhead ? 'ahead' : 'behind');
+  
+  const isDistAhead = timeDeltaSec >= 0; 
+  elDist.textContent = (isDistAhead ? '+' : '-') + Math.round(distDiff) + ' m';
+  elDist.className = 'ghost-stat-val ' + (isDistAhead ? 'ahead' : 'behind');
 
   ghostState.raceLoopRAF = requestAnimationFrame(raceLoop);
 }
